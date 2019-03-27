@@ -19,14 +19,20 @@ import java.util.concurrent.Future;
 public class SPReadExecutor implements Callable<Long> {
 
     private static final Logger LOG = LoggerFactory.getLogger(SPReadExecutor.class);
+
     private AlluxioURI mAlluxioURI;
+
     private FileSystem mFileSystem = FileSystem.Factory.get();
+
     private SPFileReader mSPFileReader;
+
     public static final String TEST_PATH = "/tests";
 
     private static final String logDirPath = System.getProperty("user.dir") + "/logs";
 
     private static FileWriter mLog;
+
+    private static int num = 0;
 
     public SPReadExecutor(AlluxioURI alluxioURI) throws Exception {
         // mFileSystem = fileSystem;
@@ -34,14 +40,22 @@ public class SPReadExecutor implements Callable<Long> {
         mSPFileReader = new SPFileReader(mFileSystem, alluxioURI);
 
         File tLogDir = new File(logDirPath);
-        if (!tLogDir.exists()){
+        if (!tLogDir.exists()) {
             tLogDir.mkdir();
         }
+        num++;
         mLog = new FileWriter(logDirPath + "/readLatency.txt", true); // append
+        mLog.write("initialize No." + num + "\n");
+        mLog.flush();
     }
 
     public Long call() throws Exception {
-        return mSPFileReader.runRead();
+        mLog.write("Enter call function and SPFileReader runRead()\n");
+        mLog.flush();
+        Long result = mSPFileReader.runRead();
+        mLog.write("Leave runRead() Function\n");
+        mLog.flush();
+        return result;
     }
 
 
@@ -49,14 +63,24 @@ public class SPReadExecutor implements Callable<Long> {
     public static void main(String[] args) throws Exception {
         String fileName = args[0];
         AlluxioURI alluxioURI = new AlluxioURI(String.format("%s/%s", TEST_PATH, fileName));
+
         ExecutorService executor = Executors.newCachedThreadPool();
-        Future<Long> future =executor.submit(new SPReadExecutor(alluxioURI));
-        Long tTimeTaken = future.get(); // block
-        // Thread.sleep(5000L); // for debug
-        LOG.info("spisbetter: Read " + fileName + " in " + tTimeTaken + " ms.");
-        synchronized (mLog){
-            mLog.write(String.format("%s\t%s\n",fileName, tTimeTaken));
+//        mLog.write("Now enter executor.submit\n");
+        Future<Long> future = executor.submit(new SPReadExecutor(alluxioURI));
+        mLog.write("Now leave executor.submit\n");
+        mLog.flush();
+        Long tTimeTaken;
+        try {
+            tTimeTaken = future.get(); // block
+        } catch (Exception e) {
+            throw(e);
         }
+        // Thread.sleep(5000L); // for debug
+        mLog.write("sp isbetter: Read " + fileName + " in " + tTimeTaken + " ms.\n");
+        mLog.flush();
+//        synchronized (mLog){
+//            mLog.write(String.format("%s\t%s\n",fileName, tTimeTaken));
+//        }
         executor.shutdown();
         mLog.close();
     }

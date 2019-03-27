@@ -39,7 +39,8 @@ def SPBenchmark(totalCount, rate):
         print "sleep for %s seconds" % interval
         time.sleep(interval)
         fileId = numpy.random.choice(numpy.arange(0, fileNumber), p=popularity)
-        os.system('bin/alluxio runSPReadExecutor %s >> /tmp/log &' % fileId)
+        print "fileId is: %d" % fileId
+        os.system('bin/alluxio runSPReadExecutor %s' % fileId)
 
     os.system('wait')
     #line = os.popen('jobs').read()

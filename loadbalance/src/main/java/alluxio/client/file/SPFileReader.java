@@ -20,20 +20,27 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * Created by renfei on 2017/11/24.
- *
+ * <p>
  * This class reads the file in parallel from k machines and assemble them into a single buffer.
  */
 public class SPFileReader {
 
     private int mK;
+
     private FileSystem mFileSystem;
+
     private AlluxioURI mFilePath;
+
     private OpenFileOptions mReadOptions;
+
     private static final Logger LOG = LoggerFactory.getLogger(SPFileReader.class);
+
     private final String mLog; // for cache hits in file level
 
 
-    public SPFileReader(FileSystem fileSystem, AlluxioURI filePath) throws IOException, AlluxioException {
+    public SPFileReader(FileSystem fileSystem, AlluxioURI filePath) throws
+            IOException,
+            AlluxioException {
         mFileSystem = fileSystem;
         mFilePath = filePath;
         mReadOptions = OpenFileOptions.defaults().setReadType(ReadType.NO_CACHE);
@@ -53,27 +60,34 @@ public class SPFileReader {
         FileWriter fw = new FileWriter(mLog, true); //the true will append the new data
         int cachedPercentage = is.mStatus.getInMemoryPercentage();
         long fileSize = is.mStatus.getLength();
-        fw.write(""+cachedPercentage+"\t"+fileSize+"\n");
-        /**
-        if(is.mStatus.getInMemoryPercentage() < 100) {
-
-            fw.write("\tmiss\n");
-        }
-        else{ // local or remote
-            fw.write("hit\n");
-        }**/
-        fw.close();
+        fw.write("" + cachedPercentage + "\t" + fileSize + "\n");
+        fw.flush();
         byte[] fileBuf = new byte[(int) is.mFileLength];
 
         ExecutorService executorService = Executors.newCachedThreadPool();
 
         //LockedInodePath inodePath = mInodeTree.lockInodePath(path, InodeTree.LockMode.WRITE)
         final long startTimeMs = CommonUtils.getCurrentMs();
+        fw.write("Now enter executorService.execute, mK is " + mK + "\n");
+        fw.flush();
         for (int i = 0; i < mK; i++) {
-            executorService.execute(new ReadBlockThread(fileBuf, mFilePath, mFileSystem, mReadOptions, i));
+            try {
+                executorService.execute(new ReadBlockThread(
+                        fileBuf,
+                        mFilePath,
+                        mFileSystem,
+                        mReadOptions,
+                        i
+                ));
+            }catch (Exception e){
+                throw e;
+            }
         }
-
+        fw.write("Now leave executorService.executor\n");
+        fw.flush();
         executorService.shutdown();
+        fw.write("executorService.shutdown() finished\n");
+        fw.flush();
         try {
             executorService.awaitTermination(1, TimeUnit.HOURS);
         } catch (InterruptedException e) {
@@ -81,6 +95,9 @@ public class SPFileReader {
         }
         // Thread.sleep(5000L); //debug
         final long endTimeMs = CommonUtils.getCurrentMs();
+        fw.write(mFilePath.getPath() + "read spend time: " + (endTimeMs - startTimeMs) + "\n");
+        fw.flush();
+        fw.close();
         return endTimeMs - startTimeMs;
     }
 

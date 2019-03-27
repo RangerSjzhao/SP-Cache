@@ -19,18 +19,25 @@ import java.util.Random;
 
 /**
  * Created by renfei on 2017/11/24.
- *
+ * <p>
  * This class reads a single block into a part of a buffer.
  */
 public class ReadBlockThread implements Runnable {
 
     private FileSystem mFileSystem;
+
     private AlluxioURI mFilePath;
+
     private OpenFileOptions mReadOptions;
+
     private int mPartID;
+
     private static final Logger LOG = LoggerFactory.getLogger(ReadBlockThread.class);
+
     private byte[] mBlockBuf;
+
     private final String mLog; // for cache hits
+
     private static final Double[] StragglerProb = {0.0266,
             0.0237,
             0.0207,
@@ -88,7 +95,8 @@ public class ReadBlockThread implements Runnable {
             0.0028,
             0.0028,
             0.0027};
-    private static final Double[] StragglerEffect={ // straggler factor: (2+this_value)
+
+    private static final Double[] StragglerEffect = { // straggler factor: (2+this_value)
             1.4980,
             1.5385,
             1.5385,
@@ -146,93 +154,123 @@ public class ReadBlockThread implements Runnable {
             9.4737,
             9.6761,
             9.8988
-        };
+    };
+
     private static Integer[] ARRAY = new Integer[10000]; // the array to draw random integers from
+
     private static double PROB = 0.05; // the probability that a straggler occurs
+
     private static String PROBPATH = System.getProperty("user.home") + "/test_files/strag_prob.txt";
 
+    private FileWriter fw;
     static {
         int indexProb = 0;
-        int indexRA=0;
-        for(;indexProb<StragglerProb.length;indexProb++){
-        int count = ((Double)(StragglerProb[indexProb]* 10000)).intValue();
-            for(int i=0; i<count; i++){
+        int indexRA = 0;
+        for (; indexProb < StragglerProb.length; indexProb++) {
+            int count = ((Double) (StragglerProb[indexProb] * 10000)).intValue();
+            for (int i = 0; i < count; i++) {
                 ARRAY[indexRA] = indexProb;
                 indexRA++;
             }
         }
         //LOG.info("yinghao debug:" + Arrays.toString(ARRAY));
-        try{
+        try {
             FileReader fr = new FileReader(PROBPATH); //the true will append the new data
             BufferedReader br = new BufferedReader(fr);
             PROB = Double.parseDouble(br.readLine());
-            if(PROB > 1.0  || PROB <0.0)
+            if (PROB > 1.0 || PROB < 0.0)
                 System.out.println("The straggler probability should be in the range of [0,1]");
             System.exit(-1);
-        }
-        catch(Exception e){
+        } catch (Exception e) {
             e.printStackTrace();
         }
     }
 
 
-
-    public ReadBlockThread(byte[] buf, AlluxioURI filePath, FileSystem fileSystem,
-                           OpenFileOptions readOption, int partID) {
+    public ReadBlockThread(
+            byte[] buf, AlluxioURI filePath, FileSystem fileSystem,
+            OpenFileOptions readOption, int partID
+    ) {
         mBlockBuf = buf;
         mPartID = partID;
         mFileSystem = fileSystem;
         mFilePath = filePath;
         mReadOptions = readOption;
-        mLog = System.getProperty("user.dir") + "/logs/blockHit.txt"; // log the cache hits in the block level
+        mLog = "/home/sjz/SP-Cache/logs/blockHit.txt"; // log the cache hits in the block level
+        try {
+            fw = new FileWriter(mLog, true);
+            fw.write("ReadBlockThread initial successfully with partID: " + partID + "\n");
+            fw.flush();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+
     }
 
 
     public void run() {
         try {
+//            FileWriter fw = new FileWriter(mLog, true); //the true will append the new data
+            fw.write("enter run() \n");
+            fw.flush();
             final long startTimeMs = CommonUtils.getCurrentMs();
             mReadOptions.setForSP(false);
+            fw.write("enter openFile to inStream\n");
+            fw.flush();
             FileInStream is = mFileSystem.openFile(mFilePath, mReadOptions);
+            fw.write("leave openFile to inStream\n");
+            fw.flush();
             long tOffset = mPartID * is.mBlockSize;
             // Seek into the file to the right position.
+            fw.write("enter seek offset\n");
+            fw.flush();
             is.seek(tOffset);
+            fw.write("leave seek offset\n");
+            fw.flush();
             // Find the real block size as the last block may not be full;
             long tBlockSize = is.mBlockSize;
             if ((is.mFileLength - is.mPos) < tBlockSize) {
                 tBlockSize = is.mFileLength - is.mPos;
             }
             // Read the block into the corresponding position in the buffer.
+            fw.write("begin read from inputStream to buf\n");
+            fw.flush();
             int tBytesRead = is.read(mBlockBuf, (int) tOffset, (int) tBlockSize);
             //System.out.println("yinghao debug:" + is.mCurrentBlockInStream.Source());
             // log the block level cache hits and misses
-            FileWriter fw = new FileWriter(mLog, true); //the true will append the new data
-            //is.mCurrentBlockInStream.
 
-            if(is.mCurrentBlockInStream.Source() == BlockInStream.BlockInStreamSource.UFS) {
+            //is.mCurrentBlockInStream.
+            fw.write("enter the inStream.source is UFS judge\n");
+            fw.flush();
+            if (is.mCurrentBlockInStream.Source() == BlockInStream.BlockInStreamSource.UFS) {
                 fw.write("\tmiss\n");
-            }
-            else{ // local or remote
+            } else { // local or remote
                 fw.write("hit\n");
             }
-            fw.close();
-            LOG.info("Read a block with size:" + tBytesRead);
+            fw.flush();
+            fw.write("leave the the inStream.source is UFS judge\n");
+            fw.flush();
+            fw.write("Read a block with size:" + tBytesRead + "\n");
             is.close();
             long finishTimeMs = CommonUtils.getCurrentMs();
-            LOG.info("Read block No." + mPartID + " with time (ms):" + (finishTimeMs - startTimeMs));
+            fw.write("Read filepath is: " + mFilePath.getPath() + "Read block No." + mPartID + " with time (ms):" + (finishTimeMs - startTimeMs) + "\n");
 
             // now insert straggler effect
+            fw.write("enter straggler effect\n");
             Random rand = new Random();
-            if(rand.nextInt(100) >= PROB*100) // straggler does not occur
+            if (rand.nextInt(100) >= PROB * 100) { // straggler does not occur
+                fw.write("Straggler does not occur\n");
                 return;
-            else {
+            } else {
                 LOG.info("yinghao debug:" + Arrays.toString(ARRAY));
                 /////System.out.println("" + ARRAY[rand.nextInt(ARRAY.length)]);
                 int effectIndex = ARRAY[rand.nextInt(ARRAY.length)]; // random number from 0 to length-1
                 System.out.println("" + effectIndex);
-                Thread.sleep((long)((finishTimeMs - startTimeMs) *(1+StragglerEffect[effectIndex]))); // sleep for 1+this_value times longer
-                LOG.info("Straggler debug: straggler effect"+StragglerEffect[effectIndex] + "\t slept for (ms):" +  (finishTimeMs - startTimeMs) *(1+StragglerEffect[effectIndex]));
+                Thread.sleep((long) ((finishTimeMs - startTimeMs) * (1 + StragglerEffect[effectIndex]))); // sleep for 1+this_value times longer
+                fw.write("Straggler debug: straggler effect" + StragglerEffect[effectIndex] + "\t slept for (ms):" + (finishTimeMs - startTimeMs) * (1 + StragglerEffect[effectIndex]));
             }
-
+            fw.close();
         } catch (Exception e) {
             e.printStackTrace();
         }

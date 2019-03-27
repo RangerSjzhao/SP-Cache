@@ -20,7 +20,6 @@ import java.util.ArrayList;
 public class PrepareTestFiles {
     private static final Logger LOG = LoggerFactory.getLogger(BasicOperations.class);
 
-
     public static final String TEST_PATH = "/tests"; //Directory in Alluxio for the test files.
     private final String mLocalFile = System.getProperty("user.home") + "/test_files/test_local_file";
 
