@@ -72,6 +72,8 @@ public class SPFileReader {
         fw.flush();
         for (int i = 0; i < mK; i++) {
             try {
+                fw.write("Now enter executorService.execute, i:" + i + "\n");
+                fw.flush();
                 executorService.execute(new ReadBlockThread(
                         fileBuf,
                         mFilePath,
@@ -81,6 +83,7 @@ public class SPFileReader {
                 ));
             }catch (Exception e){
                 fw.write(e.toString()+"\n");
+                fw.flush();
             }
         }
         fw.write("Now leave executorService.executor\n");

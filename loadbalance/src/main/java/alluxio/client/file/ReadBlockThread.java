@@ -196,14 +196,14 @@ public class ReadBlockThread implements Runnable {
         mFileSystem = fileSystem;
         mFilePath = filePath;
         mReadOptions = readOption;
-        mLog = "/home/sjz/SP-Cache/logs/blockHit.txt"; // log the cache hits in the block level
-        try {
-            fw = new FileWriter(mLog, true);
-            fw.write("ReadBlockThread initial successfully with partID: " + partID + "\n");
-            fw.flush();
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+        mLog = System.getProperty("user.dir") + "/logs/blockHit.txt"; // log the cache hits in the block level
+//        try {
+//            fw = new FileWriter(mLog, true);
+//            fw.write("ReadBlockThread initial successfully with partID: " + partID + "\n");
+//            fw.flush();
+//        } catch (Exception e) {
+//            e.printStackTrace();
+//        }
 
 
     }
@@ -211,7 +211,8 @@ public class ReadBlockThread implements Runnable {
 
     public void run() {
         try {
-//            FileWriter fw = new FileWriter(mLog, true); //the true will append the new data
+            FileWriter fw = new FileWriter(mLog, true); //the true will append the new data
+            fw.write("ReadBlockThread initial successfully with partID: "+ mPartID + "\n");
             fw.write("enter run() \n");
             fw.flush();
             final long startTimeMs = CommonUtils.getCurrentMs();
@@ -272,7 +273,11 @@ public class ReadBlockThread implements Runnable {
             }
             fw.close();
         } catch (Exception e) {
-            e.printStackTrace();
+            try {
+                fw.write(e.toString()+"\n");
+            }catch (Exception ex){
+                ex.printStackTrace();
+            }
         }
     }
 }
