@@ -69,11 +69,12 @@ public class SPReadExecutor implements Callable<Long> {
         Future<Long> future = executor.submit(new SPReadExecutor(alluxioURI));
         mLog.write("Now leave executor.submit\n");
         mLog.flush();
-        Long tTimeTaken;
+        Long tTimeTaken=10000l;
         try {
             tTimeTaken = future.get(); // block
         } catch (Exception e) {
-            throw(e);
+            mLog.write(e.toString()+"\n");
+            mLog.flush();
         }
         // Thread.sleep(5000L); // for debug
         mLog.write("sp isbetter: Read " + fileName + " in " + tTimeTaken + " ms.\n");

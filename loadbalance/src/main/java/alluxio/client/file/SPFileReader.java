@@ -80,7 +80,7 @@ public class SPFileReader {
                         i
                 ));
             }catch (Exception e){
-                throw e;
+                fw.write(e.toString()+"\n");
             }
         }
         fw.write("Now leave executorService.executor\n");
